@@ -93,11 +93,11 @@ export const LoginModal: React.FC<LoginModalProps> = ({ open, onOpenChange }) =>
           </DialogTitle>
         </DialogHeader>
         
-        <Tabs defaultValue="user" className="w-full">
+        <Tabs defaultValue="client" className="w-full">
           <TabsList className="grid w-full grid-cols-2 bg-muted">
-            <TabsTrigger value="user" className="flex items-center gap-2">
+            <TabsTrigger value="client" className="flex items-center gap-2">
               <Lock className="h-4 w-4" />
-              User Login
+              Client Login
             </TabsTrigger>
             <TabsTrigger value="admin" className="flex items-center gap-2">
               <Shield className="h-4 w-4" />
@@ -105,7 +105,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ open, onOpenChange }) =>
             </TabsTrigger>
           </TabsList>
           
-          <TabsContent value="user" className="space-y-4">
+          <TabsContent value="client" className="space-y-4">
             <form onSubmit={handleClientLogin} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="clientId">Client ID</Label>
@@ -122,7 +122,6 @@ export const LoginModal: React.FC<LoginModalProps> = ({ open, onOpenChange }) =>
                 type="submit" 
                 className="w-full" 
                 disabled={loading}
-                variant="glow"
               >
                 {loading ? 'Verifying...' : 'Access Videos'}
               </Button>
@@ -146,7 +145,6 @@ export const LoginModal: React.FC<LoginModalProps> = ({ open, onOpenChange }) =>
                 type="submit" 
                 className="w-full" 
                 disabled={loading}
-                variant="admin"
               >
                 {loading ? 'Verifying...' : 'Access Admin Panel'}
               </Button>
