@@ -15,31 +15,29 @@ interface LoginModalProps {
 
 export const LoginModal: React.FC<LoginModalProps> = ({ open, onOpenChange }) => {
   const [loading, setLoading] = useState(false);
-  const [userEmail, setUserEmail] = useState('');
-  const [userPassword, setUserPassword] = useState('');
+  const [clientId, setClientId] = useState('');
   const [adminCode, setAdminCode] = useState('');
   
-  const { login, adminLogin } = useAuth();
+  const { clientLogin, adminLogin } = useAuth();
   const { toast } = useToast();
 
-  const handleUserLogin = async (e: React.FormEvent) => {
+  const handleClientLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     
     try {
-      const success = await login(userEmail, userPassword);
+      const success = await clientLogin(clientId);
       if (success) {
         toast({
           title: "Login Successful",
-          description: "Welcome back!",
+          description: "Welcome! Access granted to your assigned videos.",
         });
         onOpenChange(false);
-        setUserEmail('');
-        setUserPassword('');
+        setClientId('');
       } else {
         toast({
           title: "Login Failed",
-          description: "Invalid credentials. Please try again.",
+          description: "Invalid client ID. Please try again.",
           variant: "destructive",
         });
       }
@@ -108,26 +106,15 @@ export const LoginModal: React.FC<LoginModalProps> = ({ open, onOpenChange }) =>
           </TabsList>
           
           <TabsContent value="user" className="space-y-4">
-            <form onSubmit={handleUserLogin} className="space-y-4">
+            <form onSubmit={handleClientLogin} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="clientId">Client ID</Label>
                 <Input
-                  id="email"
-                  type="email"
-                  placeholder="Enter your email"
-                  value={userEmail}
-                  onChange={(e) => setUserEmail(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="Enter your password"
-                  value={userPassword}
-                  onChange={(e) => setUserPassword(e.target.value)}
+                  id="clientId"
+                  type="text"
+                  placeholder="Enter your client ID"
+                  value={clientId}
+                  onChange={(e) => setClientId(e.target.value)}
                   required
                 />
               </div>
@@ -137,7 +124,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ open, onOpenChange }) =>
                 disabled={loading}
                 variant="glow"
               >
-                {loading ? 'Logging in...' : 'Login'}
+                {loading ? 'Verifying...' : 'Access Videos'}
               </Button>
             </form>
           </TabsContent>

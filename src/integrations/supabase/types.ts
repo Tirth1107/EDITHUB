@@ -14,7 +14,139 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      admin_codes: {
+        Row: {
+          code: string
+          created_at: string
+          id: string
+          is_active: boolean
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      clients: {
+        Row: {
+          client_id: string
+          client_name: string
+          created_at: string
+          group_id: string | null
+          id: string
+          is_active: boolean
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          client_name: string
+          created_at?: string
+          group_id?: string | null
+          id?: string
+          is_active?: boolean
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          client_name?: string
+          created_at?: string
+          group_id?: string | null
+          id?: string
+          is_active?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clients_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      groups: {
+        Row: {
+          access_code: string
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          access_code: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          access_code?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      videos: {
+        Row: {
+          created_at: string
+          description: string | null
+          group_id: string
+          id: string
+          is_active: boolean
+          name: string
+          updated_at: string
+          video_id: string
+          video_link: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          group_id: string
+          id?: string
+          is_active?: boolean
+          name: string
+          updated_at?: string
+          video_id: string
+          video_link: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          group_id?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          updated_at?: string
+          video_id?: string
+          video_link?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "videos_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

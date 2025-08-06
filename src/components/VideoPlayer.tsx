@@ -9,9 +9,13 @@ import { Play, Pause, Volume2, MessageSquare, Send, X } from 'lucide-react';
 
 interface Video {
   id: string;
-  title: string;
+  name: string;
   description?: string;
-  file_url: string;
+  video_link: string;
+  video_id: string;
+  // Legacy support
+  title?: string;
+  file_url?: string;
   thumbnail_url?: string;
   duration?: number;
 }
@@ -147,13 +151,13 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ video, onClose }) => {
       <Card className="overflow-hidden bg-card border-border">
         <CardContent className="p-0">
           <div className="relative">
-            <video
-              ref={videoRef}
+            {/* Use iframe for video links */}
+            <iframe
               className="w-full aspect-video bg-black"
-              src={video.file_url}
-              poster={video.thumbnail_url}
-              onPlay={() => setIsPlaying(true)}
-              onPause={() => setIsPlaying(false)}
+              src={video.video_link || video.file_url}
+              title={video.name || video.title}
+              allowFullScreen
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
             />
             
             {/* Video Controls */}
@@ -212,7 +216,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ video, onClose }) => {
       </Card>
 
       <div className="space-y-4">
-        <h2 className="text-2xl font-bold text-foreground">{video.title}</h2>
+        <h2 className="text-2xl font-bold text-foreground">{video.name || video.title}</h2>
         {video.description && (
           <p className="text-muted-foreground">{video.description}</p>
         )}

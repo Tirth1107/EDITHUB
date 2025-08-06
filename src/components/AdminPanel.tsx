@@ -1,33 +1,25 @@
-import React, { useState, useRef } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { 
-  Upload, 
-  Trash2, 
-  Edit, 
-  Settings, 
-  Users, 
-  Video, 
-  Shield,
-  Plus,
-  Eye,
-  Lock
-} from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { Upload, VideoIcon, Users, Settings, Trash2, Plus, ExternalLink } from 'lucide-react';
 
 interface Video {
   id: string;
-  title: string;
+  name: string;
   description?: string;
-  file_url: string;
+  video_link: string;
+  video_id: string;
   group_id: string;
-  duration?: number;
-  file_size?: number;
-  created_at: string;
+  is_active: boolean;
+  groups?: { name: string };
 }
 
 interface VideoGroup {
@@ -35,450 +27,226 @@ interface VideoGroup {
   name: string;
   access_code: string;
   description?: string;
-  video_count: number;
 }
 
 export const AdminPanel: React.FC = () => {
   const [videos, setVideos] = useState<Video[]>([]);
-  const [videoGroups, setVideoGroups] = useState<VideoGroup[]>([]);
-  const [uploading, setUploading] = useState(false);
+  const [groups, setGroups] = useState<VideoGroup[]>([]);
+  const [loading, setLoading] = useState(false);
+  
+  // Video states
+  const [videoName, setVideoName] = useState('');
+  const [videoDescription, setVideoDescription] = useState('');
+  const [videoLink, setVideoLink] = useState('');
+  const [selectedGroupId, setSelectedGroupId] = useState('');
+  
+  // Group states
   const [newGroupName, setNewGroupName] = useState('');
   const [newGroupCode, setNewGroupCode] = useState('');
   const [newGroupDescription, setNewGroupDescription] = useState('');
-  const [adminAccessCode, setAdminAccessCode] = useState('7016565502');
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  
   const { toast } = useToast();
 
-  // Video Upload Form State
-  const [videoTitle, setVideoTitle] = useState('');
-  const [videoDescription, setVideoDescription] = useState('');
-  const [selectedGroupId, setSelectedGroupId] = useState('');
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  useEffect(() => {
+    loadData();
+  }, []);
 
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      if (file.type.startsWith('video/')) {
-        setSelectedFile(file);
-        // Auto-generate title from filename if empty
-        if (!videoTitle) {
-          setVideoTitle(file.name.replace(/\.[^/.]+$/, ""));
-        }
-      } else {
-        toast({
-          title: "Invalid File",
-          description: "Please select a video file.",
-          variant: "destructive",
-        });
-      }
+  const loadData = async () => {
+    try {
+      const [videosResult, groupsResult] = await Promise.all([
+        supabase.from('videos').select('*, groups(name)').order('created_at', { ascending: false }),
+        supabase.from('groups').select('*').order('created_at', { ascending: false })
+      ]);
+      
+      setVideos(videosResult.data || []);
+      setGroups(groupsResult.data || []);
+    } catch (error) {
+      console.error('Error loading data:', error);
     }
   };
 
   const uploadVideo = async () => {
-    if (!selectedFile || !videoTitle || !selectedGroupId) {
-      toast({
-        title: "Missing Information",
-        description: "Please fill in all required fields and select a file.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setUploading(true);
+    if (!videoName || !videoLink || !selectedGroupId) return;
+    
+    setLoading(true);
     try {
-      // TODO: Replace with actual Supabase upload
-      // Simulate upload process
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      const newVideo: Video = {
-        id: Math.random().toString(),
-        title: videoTitle,
+      const { error } = await supabase.from('videos').insert({
+        name: videoName,
         description: videoDescription,
-        file_url: URL.createObjectURL(selectedFile),
+        video_link: videoLink,
+        video_id: `VID_${Date.now()}`,
         group_id: selectedGroupId,
-        file_size: selectedFile.size,
-        created_at: new Date().toISOString(),
-      };
+      });
 
-      setVideos(prev => [...prev, newVideo]);
+      if (error) throw error;
       
-      // Reset form
-      setVideoTitle('');
+      setVideoName('');
       setVideoDescription('');
-      setSelectedFile(null);
-      if (fileInputRef.current) fileInputRef.current.value = '';
-
-      toast({
-        title: "Upload Successful",
-        description: "Video has been uploaded successfully!",
-      });
+      setVideoLink('');
+      setSelectedGroupId('');
+      loadData();
+      
+      toast({ title: "Video Added", description: "Video uploaded successfully." });
     } catch (error) {
-      toast({
-        title: "Upload Failed",
-        description: "Failed to upload video. Please try again.",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Failed to upload video.", variant: "destructive" });
     } finally {
-      setUploading(false);
+      setLoading(false);
     }
   };
 
   const createVideoGroup = async () => {
-    if (!newGroupName || !newGroupCode) {
-      toast({
-        title: "Missing Information",
-        description: "Please enter group name and access code.",
-        variant: "destructive",
-      });
-      return;
-    }
-
+    if (!newGroupName || !newGroupCode) return;
+    
+    setLoading(true);
     try {
-      // TODO: Replace with actual Supabase call
-      const newGroup: VideoGroup = {
-        id: Math.random().toString(),
+      const { error } = await supabase.from('groups').insert({
         name: newGroupName,
         access_code: newGroupCode,
         description: newGroupDescription,
-        video_count: 0,
-      };
+      });
 
-      setVideoGroups(prev => [...prev, newGroup]);
+      if (error) throw error;
       
-      // Reset form
       setNewGroupName('');
       setNewGroupCode('');
       setNewGroupDescription('');
-
-      toast({
-        title: "Group Created",
-        description: "Video group has been created successfully!",
-      });
-    } catch (error) {
-      toast({
-        title: "Creation Failed",
-        description: "Failed to create video group.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const deleteVideo = async (videoId: string) => {
-    try {
-      // TODO: Replace with actual Supabase call
-      setVideos(prev => prev.filter(v => v.id !== videoId));
+      loadData();
       
-      toast({
-        title: "Video Deleted",
-        description: "Video has been deleted successfully.",
-      });
+      toast({ title: "Group Created", description: "Video group created successfully." });
     } catch (error) {
-      toast({
-        title: "Deletion Failed",
-        description: "Failed to delete video.",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Failed to create group.", variant: "destructive" });
+    } finally {
+      setLoading(false);
     }
-  };
-
-  const updateAccessCode = async () => {
-    try {
-      // TODO: Replace with actual Supabase call
-      toast({
-        title: "Access Code Updated",
-        description: "Admin access code has been updated successfully.",
-      });
-    } catch (error) {
-      toast({
-        title: "Update Failed",
-        description: "Failed to update access code.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const formatFileSize = (bytes: number) => {
-    const mb = bytes / (1024 * 1024);
-    return `${mb.toFixed(2)} MB`;
   };
 
   return (
     <div className="space-y-6">
-      <Card className="bg-gradient-to-r from-warning/10 to-warning/5 border-warning/20">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-warning">
-            <Shield className="h-6 w-6" />
-            Admin Control Panel
-          </CardTitle>
-        </CardHeader>
-      </Card>
+      <h1 className="text-3xl font-bold">Admin Panel</h1>
 
-      <Tabs defaultValue="upload" className="w-full">
-        <TabsList className="grid w-full grid-cols-4 bg-muted">
-          <TabsTrigger value="upload" className="flex items-center gap-2">
-            <Upload className="h-4 w-4" />
-            Upload
-          </TabsTrigger>
-          <TabsTrigger value="manage" className="flex items-center gap-2">
-            <Video className="h-4 w-4" />
-            Manage
-          </TabsTrigger>
-          <TabsTrigger value="groups" className="flex items-center gap-2">
-            <Users className="h-4 w-4" />
-            Groups
-          </TabsTrigger>
-          <TabsTrigger value="settings" className="flex items-center gap-2">
-            <Settings className="h-4 w-4" />
-            Settings
-          </TabsTrigger>
+      <Tabs defaultValue="upload" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="upload">Upload</TabsTrigger>
+          <TabsTrigger value="manage">Manage</TabsTrigger>
+          <TabsTrigger value="groups">Groups</TabsTrigger>
+          <TabsTrigger value="settings">Settings</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="upload" className="space-y-6">
-          <Card className="bg-card border-border">
+        <TabsContent value="upload">
+          <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Upload className="h-5 w-5 text-primary" />
-                Upload New Video
-              </CardTitle>
+              <CardTitle>Add New Video</CardTitle>
+              <CardDescription>Add video links (YouTube, Vimeo, etc.)</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="videoFile">Video File</Label>
-                <Input
-                  id="videoFile"
-                  type="file"
-                  accept="video/*"
-                  ref={fileInputRef}
-                  onChange={handleFileSelect}
-                />
-                {selectedFile && (
-                  <p className="text-sm text-muted-foreground">
-                    Selected: {selectedFile.name} ({formatFileSize(selectedFile.size)})
-                  </p>
-                )}
-              </div>
+              <Input
+                placeholder="Video name"
+                value={videoName}
+                onChange={(e) => setVideoName(e.target.value)}
+              />
+              <Input
+                placeholder="Video link (iframe URL)"
+                value={videoLink}
+                onChange={(e) => setVideoLink(e.target.value)}
+              />
+              <Textarea
+                placeholder="Description"
+                value={videoDescription}
+                onChange={(e) => setVideoDescription(e.target.value)}
+              />
+              <Select value={selectedGroupId} onValueChange={setSelectedGroupId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select group" />
+                </SelectTrigger>
+                <SelectContent>
+                  {groups.map(group => (
+                    <SelectItem key={group.id} value={group.id}>
+                      {group.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button onClick={uploadVideo} disabled={loading} className="w-full">
+                {loading ? 'Adding...' : 'Add Video'}
+              </Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="videoTitle">Video Title *</Label>
-                  <Input
-                    id="videoTitle"
-                    value={videoTitle}
-                    onChange={(e) => setVideoTitle(e.target.value)}
-                    placeholder="Enter video title"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="groupSelect">Video Group *</Label>
-                  <select
-                    id="groupSelect"
-                    value={selectedGroupId}
-                    onChange={(e) => setSelectedGroupId(e.target.value)}
-                    className="w-full px-3 py-2 bg-background border border-input rounded-md"
+        <TabsContent value="manage">
+          <Card>
+            <CardHeader>
+              <CardTitle>Manage Videos ({videos.length})</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {videos.map(video => (
+                <div key={video.id} className="flex justify-between items-center p-4 border rounded">
+                  <div>
+                    <h3 className="font-semibold">{video.name}</h3>
+                    <p className="text-sm text-muted-foreground">{video.groups?.name}</p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => window.open(video.video_link, '_blank')}
                   >
-                    <option value="">Select a group</option>
-                    {videoGroups.map(group => (
-                      <option key={group.id} value={group.id}>
-                        {group.name} (Code: {group.access_code})
-                      </option>
-                    ))}
-                  </select>
+                    <ExternalLink className="h-4 w-4" />
+                  </Button>
                 </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="videoDescription">Description</Label>
-                <Textarea
-                  id="videoDescription"
-                  value={videoDescription}
-                  onChange={(e) => setVideoDescription(e.target.value)}
-                  placeholder="Enter video description (optional)"
-                  rows={3}
-                />
-              </div>
-
-              <Button
-                onClick={uploadVideo}
-                disabled={uploading}
-                className="w-full"
-                variant="glow"
-              >
-                {uploading ? 'Uploading...' : 'Upload Video'}
-              </Button>
+              ))}
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="manage" className="space-y-6">
-          <Card className="bg-card border-border">
+        <TabsContent value="groups">
+          <Card>
             <CardHeader>
-              <CardTitle>Manage Videos</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {videos.length === 0 ? (
-                <p className="text-center text-muted-foreground py-8">
-                  No videos uploaded yet. Upload your first video!
-                </p>
-              ) : (
-                <div className="space-y-4">
-                  {videos.map(video => (
-                    <Card key={video.id} className="bg-muted/50 border-border">
-                      <CardContent className="p-4">
-                        <div className="flex justify-between items-start gap-4">
-                          <div className="flex-1 space-y-2">
-                            <h3 className="font-semibold text-foreground">{video.title}</h3>
-                            {video.description && (
-                              <p className="text-sm text-muted-foreground">{video.description}</p>
-                            )}
-                            <div className="flex gap-4 text-xs text-muted-foreground">
-                              <span>Group: {videoGroups.find(g => g.id === video.group_id)?.name || 'Unknown'}</span>
-                              {video.file_size && <span>Size: {formatFileSize(video.file_size)}</span>}
-                              <span>Uploaded: {new Date(video.created_at).toLocaleDateString()}</span>
-                            </div>
-                          </div>
-                          <div className="flex gap-2">
-                            <Button variant="ghost" size="sm">
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="sm">
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              onClick={() => deleteVideo(video.id)}
-                              className="text-destructive hover:bg-destructive/20"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="groups" className="space-y-6">
-          <Card className="bg-card border-border">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Plus className="h-5 w-5 text-primary" />
-                Create New Video Group
-              </CardTitle>
+              <CardTitle>Create Group</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="groupName">Group Name *</Label>
-                  <Input
-                    id="groupName"
-                    value={newGroupName}
-                    onChange={(e) => setNewGroupName(e.target.value)}
-                    placeholder="Enter group name"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="groupCode">Access Code *</Label>
-                  <Input
-                    id="groupCode"
-                    value={newGroupCode}
-                    onChange={(e) => setNewGroupCode(e.target.value)}
-                    placeholder="Enter access code"
-                  />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="groupDescription">Description</Label>
-                <Textarea
-                  id="groupDescription"
-                  value={newGroupDescription}
-                  onChange={(e) => setNewGroupDescription(e.target.value)}
-                  placeholder="Enter group description (optional)"
-                  rows={3}
-                />
-              </div>
-              <Button onClick={createVideoGroup} variant="glow" className="w-full">
-                Create Group
+              <Input
+                placeholder="Group name"
+                value={newGroupName}
+                onChange={(e) => setNewGroupName(e.target.value)}
+              />
+              <Input
+                placeholder="Access code"
+                value={newGroupCode}
+                onChange={(e) => setNewGroupCode(e.target.value)}
+              />
+              <Textarea
+                placeholder="Description"
+                value={newGroupDescription}
+                onChange={(e) => setNewGroupDescription(e.target.value)}
+              />
+              <Button onClick={createVideoGroup} disabled={loading}>
+                {loading ? 'Creating...' : 'Create Group'}
               </Button>
             </CardContent>
           </Card>
-
-          <Card className="bg-card border-border">
+          
+          <Card>
             <CardHeader>
-              <CardTitle>Existing Groups</CardTitle>
+              <CardTitle>Groups ({groups.length})</CardTitle>
             </CardHeader>
-            <CardContent>
-              {videoGroups.length === 0 ? (
-                <p className="text-center text-muted-foreground py-8">
-                  No groups created yet. Create your first group!
-                </p>
-              ) : (
-                <div className="space-y-4">
-                  {videoGroups.map(group => (
-                    <Card key={group.id} className="bg-muted/50 border-border">
-                      <CardContent className="p-4">
-                        <div className="flex justify-between items-start gap-4">
-                          <div className="flex-1 space-y-2">
-                            <h3 className="font-semibold text-foreground">{group.name}</h3>
-                            {group.description && (
-                              <p className="text-sm text-muted-foreground">{group.description}</p>
-                            )}
-                            <div className="flex gap-4 text-xs text-muted-foreground">
-                              <span className="flex items-center gap-1">
-                                <Lock className="h-3 w-3" />
-                                Code: {group.access_code}
-                              </span>
-                              <span>{group.video_count} videos</span>
-                            </div>
-                          </div>
-                          <div className="flex gap-2">
-                            <Button variant="ghost" size="sm">
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              className="text-destructive hover:bg-destructive/20"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
+            <CardContent className="space-y-4">
+              {groups.map(group => (
+                <div key={group.id} className="p-4 border rounded">
+                  <h3 className="font-semibold">{group.name}</h3>
+                  <p className="text-sm">Code: {group.access_code}</p>
                 </div>
-              )}
+              ))}
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="settings" className="space-y-6">
-          <Card className="bg-card border-border">
+        <TabsContent value="settings">
+          <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Shield className="h-5 w-5 text-warning" />
-                Security Settings
-              </CardTitle>
+              <CardTitle>Admin Settings</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="adminCode">Admin Access Code</Label>
-                <Input
-                  id="adminCode"
-                  type="password"
-                  value={adminAccessCode}
-                  onChange={(e) => setAdminAccessCode(e.target.value)}
-                  placeholder="Enter new admin access code"
-                />
-              </div>
-              <Button onClick={updateAccessCode} variant="admin">
-                Update Access Code
-              </Button>
+            <CardContent>
+              <p className="text-muted-foreground">Settings panel for admin configuration.</p>
             </CardContent>
           </Card>
         </TabsContent>

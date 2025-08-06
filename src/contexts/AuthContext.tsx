@@ -1,15 +1,17 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 
 interface User {
   id: string;
-  email: string;
+  email?: string;
   username: string;
   isAdmin: boolean;
+  groupId?: string;
 }
 
 interface AuthContextType {
   user: User | null;
-  login: (email: string, password: string) => Promise<boolean>;
+  clientLogin: (clientId: string) => Promise<boolean>;
   adminLogin: (accessCode: string) => Promise<boolean>;
   logout: () => void;
   isAdmin: boolean;
@@ -39,43 +41,59 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setLoading(false);
   }, []);
 
-  const login = async (email: string, password: string): Promise<boolean> => {
+  const clientLogin = async (clientId: string): Promise<boolean> => {
     try {
-      // TODO: Replace with actual Supabase authentication
-      // For now, simulate login
-      const mockUser: User = {
-        id: '1',
-        email,
-        username: email.split('@')[0],
-        isAdmin: false
+      const { data: client, error } = await supabase
+        .from('clients')
+        .select('*, groups(*)')
+        .eq('client_id', clientId)
+        .eq('is_active', true)
+        .single();
+
+      if (error || !client) {
+        console.error('Client login error:', error);
+        return false;
+      }
+
+      const clientUser: User = {
+        id: client.id,
+        username: client.client_name,
+        isAdmin: false,
+        groupId: client.group_id
       };
       
-      setUser(mockUser);
-      localStorage.setItem('videoApp_user', JSON.stringify(mockUser));
+      setUser(clientUser);
+      localStorage.setItem('videoApp_user', JSON.stringify(clientUser));
       return true;
     } catch (error) {
-      console.error('Login error:', error);
+      console.error('Client login error:', error);
       return false;
     }
   };
 
   const adminLogin = async (accessCode: string): Promise<boolean> => {
     try {
-      // TODO: Replace with actual database check
-      // For now, check against default code
-      if (accessCode === '7016565502') {
-        const adminUser: User = {
-          id: 'admin',
-          email: 'admin@videoapp.com',
-          username: 'admin',
-          isAdmin: true
-        };
-        
-        setUser(adminUser);
-        localStorage.setItem('videoApp_user', JSON.stringify(adminUser));
-        return true;
+      const { data: adminCode, error } = await supabase
+        .from('admin_codes')
+        .select('*')
+        .eq('code', accessCode)
+        .eq('is_active', true)
+        .single();
+
+      if (error || !adminCode) {
+        console.error('Admin login error:', error);
+        return false;
       }
-      return false;
+
+      const adminUser: User = {
+        id: 'admin',
+        username: 'Administrator',
+        isAdmin: true
+      };
+      
+      setUser(adminUser);
+      localStorage.setItem('videoApp_user', JSON.stringify(adminUser));
+      return true;
     } catch (error) {
       console.error('Admin login error:', error);
       return false;
@@ -89,7 +107,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const value: AuthContextType = {
     user,
-    login,
+    clientLogin,
     adminLogin,
     logout,
     isAdmin: user?.isAdmin || false,
