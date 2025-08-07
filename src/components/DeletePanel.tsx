@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client"; // Adjust path if needed
 
-type Client = { id: number; [key: string]: any };
-type Video = { id: number; [key: string]: any };
-type Group = { id: number; [key: string]: any };
+type Client = { id: string; [key: string]: any };
+type Video = { id: string; [key: string]: any };
+type Group = { id: string; [key: string]: any };
 
 export default function DeletePanel() {
   const [clients, setClients] = useState<Client[]>([]);
@@ -29,7 +29,7 @@ export default function DeletePanel() {
     setLoading(false);
   }
 
-  async function handleDelete(table: "clients" | "videos" | "groups", id: number) {
+  async function handleDelete(table: "clients" | "videos" | "groups", id: string) {
     setLoading(true);
     await supabase.from(table).delete().eq("id", id);
     await fetchAll();
