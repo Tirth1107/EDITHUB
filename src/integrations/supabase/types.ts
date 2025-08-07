@@ -103,37 +103,88 @@ export type Database = {
         }
         Relationships: []
       }
+      profiles: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          display_name: string | null
+          email: string
+          id: string
+          role: Database["public"]["Enums"]["user_role"]
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          display_name?: string | null
+          email: string
+          id?: string
+          role?: Database["public"]["Enums"]["user_role"]
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          display_name?: string | null
+          email?: string
+          id?: string
+          role?: Database["public"]["Enums"]["user_role"]
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       videos: {
         Row: {
           created_at: string
           description: string | null
+          duration: number | null
+          expires_at: string | null
           group_id: string
           id: string
           is_active: boolean
           name: string
+          streamable_shortcode: string | null
+          streamable_url: string | null
+          thumbnail_url: string | null
           updated_at: string
+          uploaded_by: string | null
           video_id: string
           video_link: string
         }
         Insert: {
           created_at?: string
           description?: string | null
+          duration?: number | null
+          expires_at?: string | null
           group_id: string
           id?: string
           is_active?: boolean
           name: string
+          streamable_shortcode?: string | null
+          streamable_url?: string | null
+          thumbnail_url?: string | null
           updated_at?: string
+          uploaded_by?: string | null
           video_id: string
           video_link: string
         }
         Update: {
           created_at?: string
           description?: string | null
+          duration?: number | null
+          expires_at?: string | null
           group_id?: string
           id?: string
           is_active?: boolean
           name?: string
+          streamable_shortcode?: string | null
+          streamable_url?: string | null
+          thumbnail_url?: string | null
           updated_at?: string
+          uploaded_by?: string | null
           video_id?: string
           video_link?: string
         }
@@ -152,10 +203,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      cleanup_expired_videos: {
+        Args: Record<PropertyKey, never>
+        Returns: number
+      }
     }
     Enums: {
-      [_ in never]: never
+      user_role: "main_admin" | "admin" | "moderator" | "client"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -282,6 +336,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      user_role: ["main_admin", "admin", "moderator", "client"],
+    },
   },
 } as const

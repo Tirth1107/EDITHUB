@@ -1,1 +1,9 @@
 project_id = "vnweucrthasvbgzvsyun"
+
+[auth]
+enabled = true
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["https://localhost:3000"]
+
+[functions.streamable-upload]
+verify_jwt = false
