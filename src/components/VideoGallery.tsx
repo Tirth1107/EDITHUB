@@ -12,6 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 
 interface VideoData {
   id: string;
+  video_id: string;
   name: string;
   description?: string;
   video_link: string;
@@ -52,7 +53,7 @@ export const VideoGallery: React.FC = () => {
       const { data, error } = await supabase
         .from('videos')
         .select(`
-          id, name, description, video_link, streamable_url, streamable_shortcode,
+          id, video_id, name, description, video_link, streamable_url, streamable_shortcode,
           thumbnail_url, duration, expires_at, created_at, group_id,
           groups (name, access_code)
         `)
