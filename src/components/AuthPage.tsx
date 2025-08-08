@@ -6,15 +6,31 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Video, UserPlus, LogIn, Mail, Lock } from 'lucide-react';
+import { Video, UserPlus, LogIn, Mail, Lock, AlertCircle } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface AuthPageProps {
   onSuccess: () => void;
 }
 
+// Auth state cleanup utility
+const cleanupAuthState = () => {
+  Object.keys(localStorage).forEach((key) => {
+    if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
+      localStorage.removeItem(key);
+    }
+  });
+  Object.keys(sessionStorage || {}).forEach((key) => {
+    if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
+      sessionStorage.removeItem(key);
+    }
+  });
+};
+
 export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess }) => {
   const [loading, setLoading] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -23,54 +39,116 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess }) => {
   
   const { toast } = useToast();
 
+  const handleSignUp = async () => {
+    // Clean up any existing auth state
+    cleanupAuthState();
+    
+    try {
+      await supabase.auth.signOut({ scope: 'global' });
+    } catch (err) {
+      // Continue even if this fails
+    }
+
+    const { data, error } = await supabase.auth.signUp({
+      email: formData.email,
+      password: formData.password,
+      options: {
+        emailRedirectTo: `${window.location.origin}/`,
+        data: {
+          display_name: formData.displayName,
+        }
+      }
+    });
+
+    if (error) throw error;
+
+    if (data.user) {
+      toast({
+        title: "Account Created Successfully",
+        description: "You can now sign in with your credentials.",
+      });
+      
+      // Switch to login tab after successful signup
+      setIsSignUp(false);
+      setFormData({ ...formData, displayName: '' });
+    }
+  };
+
+  const handleSignIn = async () => {
+    // Clean up any existing auth state
+    cleanupAuthState();
+    
+    try {
+      await supabase.auth.signOut({ scope: 'global' });
+    } catch (err) {
+      // Continue even if this fails
+    }
+
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: formData.email,
+      password: formData.password,
+    });
+
+    if (error) throw error;
+
+    if (data.user) {
+      toast({
+        title: "Login Successful",
+        description: "Welcome to THE EDIT HUB!",
+      });
+      
+      // Force page reload for clean state
+      window.location.href = '/';
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setError(null);
 
     try {
       if (isSignUp) {
-        const { error } = await supabase.auth.signUp({
-          email: formData.email,
-          password: formData.password,
-          options: {
-            emailRedirectTo: `${window.location.origin}/`,
-            data: {
-              display_name: formData.displayName,
-            }
-          }
-        });
-
-        if (error) throw error;
-
-        toast({
-          title: "Account Created",
-          description: "Please check your email to verify your account.",
-        });
+        await handleSignUp();
       } else {
-        const { error } = await supabase.auth.signInWithPassword({
-          email: formData.email,
-          password: formData.password,
-        });
-
-        if (error) throw error;
-
-        toast({
-          title: "Login Successful",
-          description: "Welcome to THE EDIT HUB!",
-        });
-        
-        onSuccess();
+        await handleSignIn();
       }
     } catch (error: any) {
       console.error('Auth error:', error);
+      
+      let errorMessage = "An unexpected error occurred. Please try again.";
+      
+      if (error.message?.includes('Invalid login credentials')) {
+        errorMessage = "Invalid email or password. Please check your credentials and try again.";
+      } else if (error.message?.includes('User already registered')) {
+        errorMessage = "This email is already registered. Please try signing in instead.";
+      } else if (error.message?.includes('Password should be at least')) {
+        errorMessage = "Password should be at least 6 characters long.";
+      } else if (error.message?.includes('Unable to validate email address')) {
+        errorMessage = "Please enter a valid email address.";
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      setError(errorMessage);
       toast({
         title: isSignUp ? "Sign Up Failed" : "Login Failed",
-        description: error.message || "Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
       setLoading(false);
     }
+  };
+
+  const resetForm = () => {
+    setFormData({ email: '', password: '', displayName: '' });
+    setError(null);
+  };
+
+  const switchMode = (mode: 'login' | 'signup') => {
+    setIsSignUp(mode === 'signup');
+    resetForm();
   };
 
   return (
@@ -84,13 +162,20 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess }) => {
           <CardDescription>by UpSocial</CardDescription>
         </CardHeader>
         <CardContent>
+          {error && (
+            <Alert variant="destructive" className="mb-4">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+          
           <Tabs defaultValue="login" className="w-full">
             <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="login" onClick={() => setIsSignUp(false)}>
+              <TabsTrigger value="login" onClick={() => switchMode('login')}>
                 <LogIn className="w-4 h-4 mr-2" />
                 Login
               </TabsTrigger>
-              <TabsTrigger value="signup" onClick={() => setIsSignUp(true)}>
+              <TabsTrigger value="signup" onClick={() => switchMode('signup')}>
                 <UserPlus className="w-4 h-4 mr-2" />
                 Sign Up
               </TabsTrigger>
@@ -110,6 +195,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess }) => {
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                       className="pl-10"
                       required
+                      autoComplete="email"
                     />
                   </div>
                 </div>
@@ -125,6 +211,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess }) => {
                       onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                       className="pl-10"
                       required
+                      autoComplete="current-password"
                     />
                   </div>
                 </div>
@@ -145,36 +232,39 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess }) => {
                     value={formData.displayName}
                     onChange={(e) => setFormData({ ...formData, displayName: e.target.value })}
                     required
+                    autoComplete="name"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
+                  <Label htmlFor="signup-email">Email</Label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                     <Input
-                      id="email"
+                      id="signup-email"
                       type="email"
                       placeholder="Enter your email"
                       value={formData.email}
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                       className="pl-10"
                       required
+                      autoComplete="email"
                     />
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
+                  <Label htmlFor="signup-password">Password</Label>
                   <div className="relative">
                     <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                     <Input
-                      id="password"
+                      id="signup-password"
                       type="password"
-                      placeholder="Create a password"
+                      placeholder="Create a password (min 6 characters)"
                       value={formData.password}
                       onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                       className="pl-10"
                       required
                       minLength={6}
+                      autoComplete="new-password"
                     />
                   </div>
                 </div>
