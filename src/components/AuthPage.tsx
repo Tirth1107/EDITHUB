@@ -40,66 +40,68 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess }) => {
   const { toast } = useToast();
 
   const handleSignUp = async () => {
-    // Clean up any existing auth state
-    cleanupAuthState();
-    
-    try {
-      await supabase.auth.signOut({ scope: 'global' });
-    } catch (err) {
-      // Continue even if this fails
+    setLoading(true);
+    setError(null);
+
+    // Check if email already exists
+    const { data: existing, error: existingError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('email', formData.email)
+      .single();
+
+    if (existing) {
+      throw new Error("This email is already registered. Please try signing in instead.");
     }
 
-    const { data, error } = await supabase.auth.signUp({
-      email: formData.email,
-      password: formData.password,
-      options: {
-        emailRedirectTo: `${window.location.origin}/`,
-        data: {
+    // Insert new profile
+    const { error } = await supabase
+      .from('profiles')
+      .insert([
+        {
+          email: formData.email,
+          password: formData.password, // Plaintext (not secure for production)
           display_name: formData.displayName,
-        }
-      }
-    });
+        },
+      ]);
 
     if (error) throw error;
 
-    if (data.user) {
-      toast({
-        title: "Account Created Successfully",
-        description: "You can now sign in with your credentials.",
-      });
-      
-      // Switch to login tab after successful signup
-      setIsSignUp(false);
-      setFormData({ ...formData, displayName: '' });
-    }
+    toast({
+      title: "Account Created Successfully",
+      description: "You can now sign in with your credentials.",
+    });
+
+    setIsSignUp(false);
+    setFormData({ ...formData, displayName: '' });
   };
 
   const handleSignIn = async () => {
-    // Clean up any existing auth state
-    cleanupAuthState();
-    
-    try {
-      await supabase.auth.signOut({ scope: 'global' });
-    } catch (err) {
-      // Continue even if this fails
+    setLoading(true);
+    setError(null);
+
+    // Query the profiles table for matching email and password
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('email', formData.email)
+      .eq('password', formData.password)
+      .single();
+
+    if (error || !data) {
+      throw new Error("Invalid email or password. Please check your credentials and try again.");
     }
 
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: formData.email,
-      password: formData.password,
+    // Successful login
+    toast({
+      title: "Login Successful",
+      description: "Welcome to THE EDIT HUB!",
     });
 
-    if (error) throw error;
+    // Optionally save profile info
+    localStorage.setItem('profile', JSON.stringify(data));
 
-    if (data.user) {
-      toast({
-        title: "Login Successful",
-        description: "Welcome to THE EDIT HUB!",
-      });
-      
-      // Force page reload for clean state
-      window.location.href = '/';
-    }
+    window.location.href = '/';
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -118,9 +120,9 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess }) => {
       
       let errorMessage = "An unexpected error occurred. Please try again.";
       
-      if (error.message?.includes('Invalid login credentials')) {
+      if (error.message?.includes('Invalid email or password')) {
         errorMessage = "Invalid email or password. Please check your credentials and try again.";
-      } else if (error.message?.includes('User already registered')) {
+      } else if (error.message?.includes('already registered')) {
         errorMessage = "This email is already registered. Please try signing in instead.";
       } else if (error.message?.includes('Password should be at least')) {
         errorMessage = "Password should be at least 6 characters long.";
