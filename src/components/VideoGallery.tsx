@@ -152,40 +152,103 @@ export const VideoGallery: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <Card>
+      <Card className="bg-gradient-to-r from-primary/5 to-primary/10 border-primary/20">
         <CardContent className="pt-6">
-          <div className="flex gap-4">
+          <div className="flex flex-col md:flex-row gap-4">
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search videos..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
+                className="pl-10 bg-background/50 backdrop-blur"
               />
             </div>
+            {hasModeratorAccess && (
+              <Select value={selectedGroup} onValueChange={setSelectedGroup}>
+                <SelectTrigger className="w-full md:w-48 bg-background/50 backdrop-blur">
+                  <Filter className="h-4 w-4 mr-2" />
+                  <SelectValue placeholder="Filter by group" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Groups</SelectItem>
+                  {groups.map(group => (
+                    <SelectItem key={group.id} value={group.id}>{group.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
+          {filteredVideos.length > 0 && (
+            <div className="mt-4 text-sm text-muted-foreground">
+              Showing {filteredVideos.length} video{filteredVideos.length !== 1 ? 's' : ''}
+            </div>
+          )}
         </CardContent>
       </Card>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {filteredVideos.map((video) => (
-          <Card key={video.id} className="group hover:shadow-lg transition-shadow">
-            <CardHeader className="pb-3">
-              <Badge variant="secondary">{video.groups?.name || 'Unknown Group'}</Badge>
-              <CardTitle className="text-lg line-clamp-2">{video.name}</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="aspect-video bg-muted rounded-lg flex items-center justify-center">
-                <Play className="h-8 w-8" />
-              </div>
-              <Button onClick={() => setSelectedVideo(video)} className="w-full">
-                <Eye className="h-4 w-4 mr-2" />
-                Watch Video
-              </Button>
-            </CardContent>
-          </Card>
-        ))}
+        {filteredVideos.map((video) => {
+          const expirationDate = video.expires_at ? new Date(video.expires_at) : null;
+          const now = new Date();
+          const daysLeft = expirationDate ? Math.ceil((expirationDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)) : null;
+          
+          return (
+            <Card key={video.id} className="group hover:shadow-lg transition-all duration-300 hover:scale-[1.02]">
+              <CardHeader className="pb-3">
+                <div className="flex items-start justify-between">
+                  <Badge variant="secondary" className="mb-2">{video.groups?.name || 'Unknown Group'}</Badge>
+                  {daysLeft !== null && (
+                    <Badge 
+                      variant={daysLeft <= 0 ? "destructive" : daysLeft <= 3 ? "secondary" : "outline"}
+                      className="text-xs"
+                    >
+                      {daysLeft <= 0 ? 'Expired' : `${daysLeft}d left`}
+                    </Badge>
+                  )}
+                </div>
+                <CardTitle className="text-lg line-clamp-2">{video.name}</CardTitle>
+                {video.description && (
+                  <p className="text-sm text-muted-foreground line-clamp-2">{video.description}</p>
+                )}
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="aspect-video bg-gradient-to-br from-primary/5 to-primary/10 rounded-lg flex items-center justify-center relative overflow-hidden group-hover:from-primary/10 group-hover:to-primary/20 transition-all">
+                  {video.thumbnail_url ? (
+                    <img 
+                      src={video.thumbnail_url} 
+                      alt={video.name}
+                      className="w-full h-full object-cover rounded-lg"
+                    />
+                  ) : (
+                    <Play className="h-12 w-12 text-primary/60" />
+                  )}
+                  <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <Play className="h-8 w-8 text-white" />
+                  </div>
+                </div>
+                
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <div className="flex items-center gap-1">
+                    <Calendar className="h-3 w-3" />
+                    {new Date(video.created_at).toLocaleDateString()}
+                  </div>
+                  {video.duration && (
+                    <div className="flex items-center gap-1">
+                      <Clock className="h-3 w-3" />
+                      {Math.floor(video.duration / 60)}:{(video.duration % 60).toString().padStart(2, '0')}
+                    </div>
+                  )}
+                </div>
+                
+                <Button onClick={() => setSelectedVideo(video)} className="w-full group-hover:shadow-md transition-shadow">
+                  <Eye className="h-4 w-4 mr-2" />
+                  Watch Video
+                </Button>
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
 
       {selectedVideo && (
