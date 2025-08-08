@@ -13,20 +13,6 @@ interface AuthPageProps {
   onSuccess: () => void;
 }
 
-// Auth state cleanup utility
-const cleanupAuthState = () => {
-  Object.keys(localStorage).forEach((key) => {
-    if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
-      localStorage.removeItem(key);
-    }
-  });
-  Object.keys(sessionStorage || {}).forEach((key) => {
-    if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
-      sessionStorage.removeItem(key);
-    }
-  });
-};
-
 export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess }) => {
   const [loading, setLoading] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
@@ -39,14 +25,15 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess }) => {
   
   const { toast } = useToast();
 
+  // SIGN UP
   const handleSignUp = async () => {
     setLoading(true);
     setError(null);
 
-    // Check if email already exists
-    const { data: existing, error: existingError } = await supabase
+    // Does email exist?
+    const { data: existing } = await supabase
       .from('profiles')
-      .select('*')
+      .select('email')
       .eq('email', formData.email)
       .single();
 
@@ -60,7 +47,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess }) => {
       .insert([
         {
           email: formData.email,
-          password: formData.password, // Plaintext (not secure for production)
+          password: formData.password,
           display_name: formData.displayName,
         },
       ]);
@@ -76,11 +63,12 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess }) => {
     setFormData({ ...formData, displayName: '' });
   };
 
+  // SIGN IN
   const handleSignIn = async () => {
     setLoading(true);
     setError(null);
 
-    // Query the profiles table for matching email and password
+    // Check email and password
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
@@ -89,16 +77,14 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess }) => {
       .single();
 
     if (error || !data) {
-      throw new Error("Invalid email or password. Please check your credentials and try again.");
+      throw new Error("Invalid email or password.");
     }
 
-    // Successful login
     toast({
       title: "Login Successful",
       description: "Welcome to THE EDIT HUB!",
     });
 
-    // Optionally save profile info
     localStorage.setItem('profile', JSON.stringify(data));
 
     window.location.href = '/';
@@ -116,26 +102,10 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess }) => {
         await handleSignIn();
       }
     } catch (error: any) {
-      console.error('Auth error:', error);
-      
-      let errorMessage = "An unexpected error occurred. Please try again.";
-      
-      if (error.message?.includes('Invalid email or password')) {
-        errorMessage = "Invalid email or password. Please check your credentials and try again.";
-      } else if (error.message?.includes('already registered')) {
-        errorMessage = "This email is already registered. Please try signing in instead.";
-      } else if (error.message?.includes('Password should be at least')) {
-        errorMessage = "Password should be at least 6 characters long.";
-      } else if (error.message?.includes('Unable to validate email address')) {
-        errorMessage = "Please enter a valid email address.";
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-      
-      setError(errorMessage);
+      setError(error.message || "Something went wrong");
       toast({
         title: isSignUp ? "Sign Up Failed" : "Login Failed",
-        description: errorMessage,
+        description: error.message || "Something went wrong",
         variant: "destructive",
       });
     } finally {
