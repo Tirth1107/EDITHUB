@@ -14,33 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
-      admin_codes: {
+      access_codes: {
         Row: {
+          assigned_to_email: string | null
           code: string
           created_at: string
           id: string
           is_active: boolean
+          role: Database["public"]["Enums"]["access_role"]
           updated_at: string
         }
         Insert: {
+          assigned_to_email?: string | null
           code: string
           created_at?: string
           id?: string
           is_active?: boolean
+          role: Database["public"]["Enums"]["access_role"]
           updated_at?: string
         }
         Update: {
+          assigned_to_email?: string | null
           code?: string
           created_at?: string
           id?: string
           is_active?: boolean
+          role?: Database["public"]["Enums"]["access_role"]
           updated_at?: string
         }
         Relationships: []
       }
       clients: {
         Row: {
-          client_id: string
+          access_code: string
           client_name: string
           created_at: string
           group_id: string | null
@@ -49,7 +55,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          client_id: string
+          access_code: string
           client_name: string
           created_at?: string
           group_id?: string | null
@@ -58,7 +64,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
-          client_id?: string
+          access_code?: string
           client_name?: string
           created_at?: string
           group_id?: string | null
@@ -76,117 +82,107 @@ export type Database = {
           },
         ]
       }
+      feedback: {
+        Row: {
+          client_code: string
+          comment: string
+          created_at: string
+          id: string
+          timestamp_seconds: number
+          video_id: string
+        }
+        Insert: {
+          client_code: string
+          comment: string
+          created_at?: string
+          id?: string
+          timestamp_seconds: number
+          video_id: string
+        }
+        Update: {
+          client_code?: string
+          comment?: string
+          created_at?: string
+          id?: string
+          timestamp_seconds?: number
+          video_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feedback_video_id_fkey"
+            columns: ["video_id"]
+            isOneToOne: false
+            referencedRelation: "videos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       groups: {
         Row: {
-          access_code: string
           created_at: string
+          created_by: string | null
           description: string | null
           id: string
           name: string
           updated_at: string
         }
         Insert: {
-          access_code: string
           created_at?: string
+          created_by?: string | null
           description?: string | null
           id?: string
           name: string
           updated_at?: string
         }
         Update: {
-          access_code?: string
           created_at?: string
+          created_by?: string | null
           description?: string | null
           id?: string
           name?: string
           updated_at?: string
-        }
-        Relationships: []
-      }
-      profiles: {
-        Row: {
-          created_at: string
-          created_by: string | null
-          display_name: string | null
-          email: string
-          id: string
-          role: Database["public"]["Enums"]["user_role"]
-          updated_at: string
-          user_id: string | null
-        }
-        Insert: {
-          created_at?: string
-          created_by?: string | null
-          display_name?: string | null
-          email: string
-          id?: string
-          role?: Database["public"]["Enums"]["user_role"]
-          updated_at?: string
-          user_id?: string | null
-        }
-        Update: {
-          created_at?: string
-          created_by?: string | null
-          display_name?: string | null
-          email?: string
-          id?: string
-          role?: Database["public"]["Enums"]["user_role"]
-          updated_at?: string
-          user_id?: string | null
         }
         Relationships: []
       }
       videos: {
         Row: {
+          added_by: string | null
           created_at: string
           description: string | null
-          duration: number | null
           expires_at: string | null
           group_id: string
           id: string
+          iframe_link: string
           is_active: boolean
           name: string
-          streamable_shortcode: string | null
-          streamable_url: string | null
-          thumbnail_url: string | null
           updated_at: string
-          uploaded_by: string | null
           video_id: string
-          video_link: string
         }
         Insert: {
+          added_by?: string | null
           created_at?: string
           description?: string | null
-          duration?: number | null
           expires_at?: string | null
           group_id: string
           id?: string
+          iframe_link: string
           is_active?: boolean
           name: string
-          streamable_shortcode?: string | null
-          streamable_url?: string | null
-          thumbnail_url?: string | null
           updated_at?: string
-          uploaded_by?: string | null
           video_id: string
-          video_link: string
         }
         Update: {
+          added_by?: string | null
           created_at?: string
           description?: string | null
-          duration?: number | null
           expires_at?: string | null
           group_id?: string
           id?: string
+          iframe_link?: string
           is_active?: boolean
           name?: string
-          streamable_shortcode?: string | null
-          streamable_url?: string | null
-          thumbnail_url?: string | null
           updated_at?: string
-          uploaded_by?: string | null
           video_id?: string
-          video_link?: string
         }
         Relationships: [
           {
@@ -209,7 +205,7 @@ export type Database = {
       }
     }
     Enums: {
-      user_role: "main_admin" | "admin" | "moderator" | "client"
+      access_role: "main_admin" | "admin" | "moderator" | "client"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -337,7 +333,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      user_role: ["main_admin", "admin", "moderator", "client"],
+      access_role: ["main_admin", "admin", "moderator", "client"],
     },
   },
 } as const

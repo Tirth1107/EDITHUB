@@ -1,107 +1,140 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Button } from '@/components/ui/button';
-import { useAuth, AuthProvider } from '@/contexts/AuthContext';
-import { AdminPanel } from '@/components/AdminPanel';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Video, Users, Settings, LogOut, Shield } from 'lucide-react';
 import { VideoGallery } from '@/components/VideoGallery';
-import { AuthPage } from '@/components/AuthPage';
-import { AccessDenied } from '@/components/AccessDenied';
-import { LogOut, Settings, Shield, Users, Video } from 'lucide-react';
+import { AdminPanel } from '@/components/AdminPanel';
+import { AccessPage } from '@/components/AccessPage';
+import { useAccess } from '@/contexts/AccessContext';
+import { useToast } from '@/hooks/use-toast';
 
-const AppContent = () => {
-  const [showAuthModal, setShowAuthModal] = useState(false);
-  const { user, profile, loading, signOut, hasAdminAccess, hasModeratorAccess } = useAuth();
+const Index = () => {
+  const { isAuthenticated, role, loading, signOut } = useAccess();
+  const { toast } = useToast();
 
-  // Show loading state
+  const handleSignOut = () => {
+    signOut();
+    toast({
+      title: "Signed Out",
+      description: "You have been successfully signed out.",
+    });
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <Video className="w-12 h-12 mx-auto mb-4 text-primary animate-pulse" />
           <p className="text-muted-foreground">Loading...</p>
         </div>
       </div>
     );
   }
 
-  // Show auth page if not logged in
-  if (!user) {
-    return <AuthPage onSuccess={() => setShowAuthModal(false)} />;
+  if (!isAuthenticated) {
+    return <AccessPage />;
   }
 
-  // Show access denied if user doesn't have proper role access
-  if (profile?.role === 'client' && !hasModeratorAccess) {
-    return <AccessDenied onLogin={() => setShowAuthModal(true)} />;
-  }
-
-  const handleSignOut = async () => {
-    await signOut();
-    setShowAuthModal(false);
-  };
-
-  const getRoleIcon = () => {
-    if (profile?.role === 'main_admin') return <Shield className="h-4 w-4 text-red-500" />;
-    if (profile?.role === 'admin') return <Settings className="h-4 w-4 text-orange-500" />;
-    if (profile?.role === 'moderator') return <Users className="h-4 w-4 text-blue-500" />;
-    return <Video className="h-4 w-4 text-green-500" />;
-  };
-
-  const getRoleLabel = () => {
-    switch (profile?.role) {
-      case 'main_admin': return 'Main Admin';
-      case 'admin': return 'Admin';
-      case 'moderator': return 'Moderator';
-      default: return 'Client';
-    }
-  };
+  const isAdmin = role === 'main_admin' || role === 'admin' || role === 'moderator';
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b border-border bg-card/50 backdrop-blur supports-[backdrop-filter]:bg-card/50">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">
-              THE EDIT HUB
-            </h1>
-            <p className="text-sm text-muted-foreground">by UpSocial</p>
-          </div>
-          
-          {user && (
-            <div className="flex items-center space-x-4">
-              <div className="text-right">
-                <p className="text-sm font-medium text-foreground">
-                  {profile?.display_name || user.email}
-                </p>
-                <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                  {getRoleIcon()}
-                  <span>{getRoleLabel()}</span>
-                </div>
+      {/* Header */}
+      <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
+                <Video className="w-6 h-6 text-primary" />
               </div>
-              <Button
-                variant="outline"
-                size="sm"
+              <div>
+                <h1 className="text-2xl font-bold">THE EDIT HUB</h1>
+                <p className="text-sm text-muted-foreground">by UpSocial</p>
+              </div>
+            </div>
+            
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2">
+                <Shield className="w-4 h-4 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground capitalize">
+                  {role?.replace('_', ' ')}
+                </span>
+              </div>
+              <Button 
+                variant="outline" 
+                size="sm" 
                 onClick={handleSignOut}
-                className="flex items-center gap-2"
               >
-                <LogOut className="h-4 w-4" />
+                <LogOut className="w-4 h-4 mr-2" />
                 Sign Out
               </Button>
             </div>
-          )}
+          </div>
         </div>
       </header>
 
+      {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
-        {hasAdminAccess ? <AdminPanel /> : <VideoGallery />}
+        {isAdmin ? (
+          <Tabs defaultValue="videos" className="space-y-6">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="videos">
+                <Video className="w-4 h-4 mr-2" />
+                Videos
+              </TabsTrigger>
+              <TabsTrigger value="admin">
+                <Settings className="w-4 h-4 mr-2" />
+                Admin Panel
+              </TabsTrigger>
+              <TabsTrigger value="feedback">
+                <Users className="w-4 h-4 mr-2" />
+                Feedback
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="videos">
+              <VideoGallery />
+            </TabsContent>
+
+            <TabsContent value="admin">
+              <AdminPanel />
+            </TabsContent>
+
+            <TabsContent value="feedback">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Client Feedback</CardTitle>
+                  <CardDescription>
+                    View and manage client feedback on videos
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-muted-foreground">Feedback management coming soon...</p>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+        ) : (
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Video className="w-5 h-5" />
+                  Your Videos
+                </CardTitle>
+                <CardDescription>
+                  Videos assigned to your group
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <VideoGallery />
+              </CardContent>
+            </Card>
+          </div>
+        )}
       </main>
     </div>
-  );
-};
-
-const Index = () => {
-  return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
   );
 };
 
